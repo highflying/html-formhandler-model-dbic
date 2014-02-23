@@ -25,13 +25,15 @@ sub build_data_type_map {
         'text'      => 'TextArea',
         'integer'   => 'Integer',
         'int'       => 'Integer',
+        'mediumint' => 'Integer',
         'numeric'   => 'Integer',
-        'datetime'  => 'DateTime',
-        'timestamp' => 'DateTime',
+        'datetime'  => 'Text',
+        'timestamp' => 'Text',
         'bool'      => 'Boolean',
         'decimal'   => 'Float',
         'bigint'    => 'Integer',
         'enum'      => 'Select',
+        'set'       => 'Select',
    };
 }
 
@@ -48,8 +50,24 @@ sub type_for_column {
     }
     $type ||= 'Text';
     $field_def{type} = $type;
-    $field_def{size} = $info->{size}
-           if( $type eq 'Textarea' && $info->{size} );
+    if( $type eq 'Textarea' && $info->{size} )
+	{
+    	$field_def{size} = $info->{size}
+	}
+	elsif( $type eq 'Text' && $info->{size} )
+	{
+    	$field_def{maxlength} = $info->{size};
+   		$field_def{size} = $info->{size} <= 80 ? $info->{size} : 80;
+	}
+	elsif ( ( $type eq 'Select' or $type eq 'Select' ) && $info->{extra}->{list} )
+	{
+		$field_def{options} = [ map +{ value => $_, label => $_ }, @{ $info->{extra}->{list} } ];
+		if ( lc($info->{data_type}) eq 'set' )
+		{
+			$field_def{multiple} = 1;
+		}
+	}
+	
     $field_def{required} = 1 if not $info->{is_nullable};
     return \%field_def;
 }

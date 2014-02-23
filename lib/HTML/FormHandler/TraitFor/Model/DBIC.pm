@@ -286,6 +286,13 @@ sub update_model {
         updates   => $self->values,
         %{ $self->ru_flags },
     );
+	for my $field ( keys %{ $update_params{updates} } )
+	{
+		if ( ref $update_params{updates}->{ $field } eq 'ARRAY' )
+		{
+			$update_params{updates}->{ $field } = join ',', @{ $update_params{updates}->{ $field } };
+		}
+	}
     $update_params{object} = $self->item if $self->item;
     my $new_item;
 
@@ -411,16 +418,24 @@ sub lookup_options {
     return \@options;
 }
 
-sub init_value {
-    my ( $self, $field, $value ) = @_;
-    if ( ref $value eq 'ARRAY' ) {
-        $value = [ map { $self->_fix_value( $field, $_ ) } @$value ];
-    }
-    else {
-        $value = $self->_fix_value( $field, $value );
-    }
-    $field->init_value($value);
-    $field->value($value);
+sub init_value
+{
+   my ( $self, $field, $value ) = @_;
+   if( ref $value eq 'ARRAY' ){
+   		if ( $field->type eq 'Select' and $field->multiple )
+		{
+       		$value = [ map { split( /,/, $self->_fix_value( $field, $_ ) ) } @$value ];
+		}
+		else
+		{
+       		$value = [ map { $self->_fix_value( $field, $_ ) } @$value ];
+		}
+   }
+   else{
+       $value = $self->_fix_value( $field, $value );
+   }
+   $field->init_value($value);
+   $field->value($value);
 }
 
 sub _fix_value {
