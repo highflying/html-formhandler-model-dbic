@@ -65,6 +65,29 @@ sub model_fields {
     return $fields;
 }
 
+sub get_self_cols
+{
+	my $hash_ref = shift;
+
+	my @self_cols;
+	while ( my ( $key, $value ) = each %{ $hash_ref } )
+	{
+		$key =~ s/ \A self [.] //sxm and push @self_cols, $key;
+		$value =~ s/ \A self [.] //sxm and push @self_cols, $value;
+	}
+
+	return @self_cols;
+}
+
+sub _strip_class
+{
+	my $class = shift;
+
+	$class =~ s/ \A .* :: //;
+
+	return $class;
+}
+
 sub get_fields {
     my( $self, $class, $level, @exclude ) = @_;
 
@@ -72,6 +95,47 @@ sub get_fields {
     my %primary_columns = map {$_ => 1} $source->primary_columns;
     my @fields;
     my @columns = $self->has_includes ? $self->all_includes : $source->columns;
+
+#    for my $rel( $source->relationships ) {
+#        next if grep { $_ eq $rel } @exclude;
+##        next if grep { $_->[1] eq $rel } $self->m2m_for_class($class);
+#        my $info = $source->relationship_info($rel);
+#        push @exclude, get_self_cols( $info->{cond} );
+#        my $rel_class = _strip_class( $info->{class} );
+#        my $elem_conf;
+#        if ( ! ( $info->{attrs}{accessor} eq 'multi' ) ) {
+#        	my @label_columns = qw( id );
+#			if ( $info->{attrs}{label_columns} )
+#			{
+#        		@label_columns = ref $info->{attrs}{label_columns} ? @{ $info->{attrs}{label_columns} } : ( $info->{attrs}{label_columns} );
+#			}
+#			my $label_sql = 'CONCAT_WS( " - ", ' . join( ',', @label_columns ) .  ')'; 
+#			my @options = $source->related_source( $rel )->resultset->search(
+#				{},
+#				{
+#					select       => [ 'id', \$label_sql ],
+#					as           => [ qw( value label ) ],
+#					result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+#				},
+#				)->all;
+#            push @fields, ( $rel => { type => 'Select', options => \@options } );
+#        }
+##        elsif( $level < 1 ) {
+##            my @new_exclude = get_foreign_cols ( $info->{cond} );
+##            my $config = $self->get_fields ( $rel_class, 1, );
+##            my $target_class = $rel_class;
+##            $target_class = $self->class_prefix . '::' . $rel_class if $self->class_prefix;
+##            $config->{class} = $target_class;
+##            $config->{name} = $rel;
+###           $self->set_field_class_data( $target_class => $config ) if !$self->exists_field_class( $target_class );
+##            my $field_def = '';
+###           if( defined $self->style && $self->style eq 'single' ){
+###               $field_def .= '# ';
+###           }
+##            $field_def .= "has_field '$rel' => ( type => '+${target_class}Field', );";
+##            push @fields, $field_def;
+##        }
+#    }
     for my $col ( @columns ) {
         next if grep { $_ eq $col } @exclude;
         my $info = $source->column_info($col);
@@ -79,13 +143,14 @@ sub get_fields {
         if( $primary_columns{$col} &&
             ( $info->{is_auto_increment} || $self->is_SQLite_auto_pk( $source, $info ))){
             # for PK in the root use item_id, here only PKs for related rows
-            push @field, ( $col => { type => 'Hidden' } ) if $level > 1;
+            push @field, ( $col => { type => 'Hidden' } ); # if $level > 1;
         }
         else{
             unshift @field, ( $col => $self->type_for_column( $info ) );
        }
        push @fields, @field;
     }
+	push @fields, 'save', { type => 'Submit', value => 'Save' };
     return \@fields;
 }
 
